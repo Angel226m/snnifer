@@ -1,8 +1,8 @@
-#!/usr/bin/env python3
+﻿#!/usr/bin/env python3
 """
 Raw Packet Sniffer MEJORADO - Captura paquetes HTTP/HTTPS en tiempo real
-Guarda en PostgreSQL para visualización en dashboard
-Con análisis avanzado de payloads y detección de compresión
+Guarda en PostgreSQL para visualizaciÃ³n en dashboard
+Con anÃ¡lisis avanzado de payloads y detecciÃ³n de compresiÃ³n
 """
 
 import threading
@@ -28,10 +28,10 @@ try:
     HAS_DECODERS = True
 except ImportError:
     HAS_DECODERS = False
-    logger.warning("⚠️ Decoders module not found - usando métodos básicos")
+    logger.warning("âš ï¸ Decoders module not found - usando mÃ©todos bÃ¡sicos")
 
 class PacketSniffer:
-    """Captura paquetes HTTP/HTTPS del tráfico de red con análisis avanzado"""
+    """Captura paquetes HTTP/HTTPS del trÃ¡fico de red con anÃ¡lisis avanzado"""
     
     def __init__(self):
         self.running = False
@@ -40,12 +40,12 @@ class PacketSniffer:
         self.decompressed_count = 0
     
     def get_db_connection(self):
-        """Obtener conexión a BD"""
+        """Obtener conexiÃ³n a BD"""
         try:
             conn = psycopg2.connect(DATABASE_URL)
             return conn
         except Exception as e:
-            logger.error(f"❌ DB Error: {e}")
+            logger.error(f"âŒ DB Error: {e}")
             return None
     
     def try_decompress(self, payload: bytes) -> tuple:
@@ -75,7 +75,7 @@ class PacketSniffer:
                 except Exception as e:
                     logger.debug(f"Deflate decompression failed: {e}")
         
-        # Intentar Brotli si está disponible
+        # Intentar Brotli si estÃ¡ disponible
         try:
             import brotli
             if payload.startswith(b'\xce\xb2\xcf\x81'):
@@ -91,7 +91,7 @@ class PacketSniffer:
         return payload, None
     
     def parse_http(self, payload):
-        """Parse HTTP request/response - Mejorado con análisis de compresión"""
+        """Parse HTTP request/response - Mejorado con anÃ¡lisis de compresiÃ³n"""
         try:
             # Intentar descomprimir primero
             decompressed_payload, compression_type = self.try_decompress(payload)
@@ -161,7 +161,7 @@ class PacketSniffer:
                         result['body'] = json.loads(body_text)
                         result['body_type'] = 'JSON'
                     except:
-                        # Intentar decodificar si está en Base64 o URL encoding
+                        # Intentar decodificar si estÃ¡ en Base64 o URL encoding
                         if HAS_DECODERS:
                             try:
                                 # Extraer tokens Base64
@@ -183,7 +183,7 @@ class PacketSniffer:
                         if len(body_text) > 500:
                             result['body_truncated'] = True
             
-            # Análisis de seguridad rápido
+            # AnÃ¡lisis de seguridad rÃ¡pido
             if HAS_DECODERS:
                 try:
                     analysis = AdvancedDecoder.analyze_payload_advanced(data[:1000])
@@ -199,7 +199,7 @@ class PacketSniffer:
     def save_to_db(self, method, endpoint, status_code, req_body, resp_body, 
                    req_headers, resp_headers, is_encrypted, client_ip, user_agent=None, 
                    compression=None, payload_analysis=None):
-        """Guardar tráfico en BD - Ahora con análisis avanzado"""
+        """Guardar trÃ¡fico en BD - Ahora con anÃ¡lisis avanzado"""
         try:
             conn = self.get_db_connection()
             if not conn:
@@ -207,11 +207,11 @@ class PacketSniffer:
             
             cur = conn.cursor()
             
-            # Extraer user_agent si no se pasa explícitamente
+            # Extraer user_agent si no se pasa explÃ­citamente
             if not user_agent and req_headers:
                 user_agent = req_headers.get('User-Agent', 'Unknown')
             
-            # Preparar campo de análisis
+            # Preparar campo de anÃ¡lisis
             analysis_json = json.dumps(payload_analysis) if payload_analysis else '{}'
             
             cur.execute("""
@@ -230,7 +230,7 @@ class PacketSniffer:
                 json.dumps(resp_headers) if resp_headers else '{}',
                 1.0,  # execution_time_ms
                 is_encrypted,
-                f'HTTPS_{compression}' if compression else ('HTTPS' if is_encrypted else 'HTTP'),
+                f'HTTPS_{compression}' if compression else ('TLS_ENCRYPTED' if is_encrypted else 'HTTP'),
                 '[]',  # vulnerabilities
                 client_ip,
                 user_agent
@@ -241,7 +241,7 @@ class PacketSniffer:
             conn.close()
             return True
         except Exception as e:
-            logger.error(f"❌ Save error: {e}")
+            logger.error(f"âŒ Save error: {e}")
             return False
     
     def packet_callback(self, packet):
@@ -256,13 +256,38 @@ class PacketSniffer:
             sport = packet[TCP].sport
             dport = packet[TCP].dport
             
-            # Filtrar por puertos de aplicación
+            # Filtrar por puertos de aplicaciÃ³n
             app_ports = {3000, 8000, 5000, 80, 443}
             if dport not in app_ports and sport not in app_ports:
                 return
             
             payload = bytes(packet[Raw].load)
-            
+
+            # ── TLS handshake detection ──────────────────────────────────
+            # TLS record starts with 0x16 (handshake) followed by 0x03 xx (TLS version)
+            if len(payload) >= 3 and payload[0] == 0x16 and payload[1] == 0x03:
+                tls_versions = {0x00: 'TLS_1.0', 0x01: 'TLS_1.0', 0x02: 'TLS_1.1',
+                                0x03: 'TLS_1.2', 0x04: 'TLS_1.3'}
+                tls_ver = tls_versions.get(payload[2], 'TLS_UNKNOWN')
+                client_ip_tls = ip_src if dport == 443 else ip_dst
+                endpoint_tls  = ip_dst if dport == 443 else ip_src
+                logger.debug(f"TLS handshake detected: {tls_ver} {ip_src}:{sport} -> {ip_dst}:{dport}")
+                self.save_to_db(
+                    method='CONNECT',
+                    endpoint=f"{endpoint_tls}:443",
+                    status_code=0,
+                    req_body=None,
+                    resp_body=None,
+                    req_headers={'TLS-Version': tls_ver, 'Record-Type': 'Handshake'},
+                    resp_headers=None,
+                    is_encrypted=True,
+                    client_ip=client_ip_tls,
+                    compression=None,
+                    payload_analysis={'tls_version': tls_ver, 'handshake': True}
+                )
+                return   # Never try to parse TLS as HTTP
+            # ────────────────────────────────────────────────────────────
+
             # Solo procesar si contiene HTTP
             if b'HTTP' not in payload:
                 return
@@ -289,7 +314,7 @@ class PacketSniffer:
             # Registrar descompresiones
             if http_info.get('compression'):
                 self.decompressed_count += 1
-                logger.info(f"📦 {http_info['compression']} decompressed: {http_info['size_original']} -> {http_info['size_decompressed']} bytes")
+                logger.info(f"ðŸ“¦ {http_info['compression']} decompressed: {http_info['size_original']} -> {http_info['size_decompressed']} bytes")
             
             # Determinar si es request o response
             is_request = http_info.get('is_request', False)
@@ -320,7 +345,7 @@ class PacketSniffer:
                     compression=compression,
                     payload_analysis=analysis
                 )
-                logger.info(f"📤 {method} {endpoint} ← {ip_src}:{sport} {f'({compression})' if compression else ''}")
+                logger.info(f"ðŸ“¤ {method} {endpoint} â† {ip_src}:{sport} {f'({compression})' if compression else ''}")
             
             elif is_response:
                 self.save_to_db(
@@ -336,215 +361,70 @@ class PacketSniffer:
                     compression=compression,
                     payload_analysis=analysis
                 )
-                logger.info(f"📥 HTTP {status} → {ip_dst}:{dport} {f'({compression})' if compression else ''}")
+                logger.info(f"ðŸ“¥ HTTP {status} â†’ {ip_dst}:{dport} {f'({compression})' if compression else ''}")
         
         except Exception as e:
             logger.debug(f"Packet error: {e}")
     
-    def start_sniffing(self):
-        """Iniciar captura de paquetes"""
-        self.running = True
-        logger.info("🔍 Sniffer MEJORADO iniciado: escuchando en eth0...")
-        logger.info(f"📡 Portos monitoreados: 3000, 8000, 5000, 80, 443")
-        logger.info(f"🔧 Decoders disponibles: {'SÍ' if HAS_DECODERS else 'NO'}")
+    def get_interfaces(self):
+        """Detect available network interfaces to sniff on."""
         try:
-            sniff(
-                iface='eth0',
-                prn=self.packet_callback,
-                store=False,
-                filter='tcp port 3000 or tcp port 8000 or tcp port 5000 or tcp port 80 or tcp port 443',
-                stop_filter=lambda x: not self.running
-            )
-        except PermissionError:
-            logger.error("❌ Necesita NET_ADMIN capability (ejecutar con sudo)")
-        except Exception as e:
-            logger.error(f"❌ Sniff error: {e}")
-    
+            from scapy.all import get_if_list
+            ifaces = get_if_list()
+            # Prefer Docker bridge-like interfaces, then eth0, then any
+            preferred = [i for i in ifaces if i.startswith(('eth', 'ens', 'br-', 'docker'))]
+            return preferred if preferred else ifaces
+        except Exception:
+            return ['eth0']
+
+    def start_sniffing(self):
+        """Iniciar captura de paquetes en todas las interfaces disponibles."""
+        self.running = True
+        interfaces = self.get_interfaces()
+        logger.info(f"ðŸ” Sniffer iniciado en interfaces: {interfaces}")
+        logger.info(f"ðŸ“¡ Puertos monitoreados: 3000, 8000, 5000, 80, 443")
+        logger.info(f"ðŸ”§ Decoders disponibles: {'SÃ' if HAS_DECODERS else 'NO'}")
+
+        bpf_filter = 'tcp port 3000 or tcp port 8000 or tcp port 5000 or tcp port 80 or tcp port 443'
+
+        def try_sniff(iface):
+            try:
+                sniff(
+                    iface=iface,
+                    prn=self.packet_callback,
+                    store=False,
+                    filter=bpf_filter,
+                    stop_filter=lambda x: not self.running
+                )
+            except PermissionError:
+                logger.error(f"âŒ Sin permisos para {iface} (requiere NET_RAW capability)")
+            except Exception as e:
+                logger.warning(f"âš ï¸  Sniff en {iface} fallÃ³: {e}")
+
+        if len(interfaces) == 1:
+            try_sniff(interfaces[0])
+        else:
+            threads = []
+            for iface in interfaces:
+                t = threading.Thread(target=try_sniff, args=(iface,), daemon=True)
+                t.start()
+                threads.append(t)
+            for t in threads:
+                t.join()
+
     def start(self):
-        """Iniciar sniffer en thread background"""
+        """Iniciar sniffer en thread background."""
         thread = threading.Thread(target=self.start_sniffing, daemon=True)
         thread.start()
-        logger.info("✅ Packet Sniffer MEJORADO en background")
+        logger.info("âœ… Packet Sniffer en background")
 
 
 # Instancia global
 sniffer = PacketSniffer()
 
-def start_packet_sniffer():
-    """Función para iniciar desde app.py"""
-    sniffer.start()
-
-
-if __name__ == '__main__':
-    start_packet_sniffer()
-    try:
-        while True:
-            time.sleep(1)
-            if sniffer.packet_count % 100 == 0 and sniffer.packet_count > 0:
-                logger.info(f"📊 Paquetes procesados: {sniffer.packet_count} | Descomprimidos: {sniffer.decompressed_count}")
-    except KeyboardInterrupt:
-        logger.info("Sniffer detenido")
-        sniffer.running = False
-
-    
-    def save_to_db(self, method, endpoint, status_code, req_body, resp_body, 
-                   req_headers, resp_headers, is_encrypted, client_ip, user_agent=None):
-        """Guardar tráfico en BD - Ahora con User-Agent y más detalles"""
-        try:
-            conn = self.get_db_connection()
-            if not conn:
-                return False
-            
-            cur = conn.cursor()
-            
-            # Extraer user_agent si no se pasa explícitamente
-            if not user_agent and req_headers:
-                user_agent = req_headers.get('User-Agent', 'Unknown')
-            
-            cur.execute("""
-                INSERT INTO traffic_logs 
-                (method, endpoint, status_code, request_body, response_body, 
-                 request_headers, response_headers, execution_time_ms, 
-                 is_encrypted, encryption_type, vulnerabilities, client_ip, user_agent)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-            """, (
-                method or 'UNKNOWN',
-                endpoint or '/',
-                status_code or 200,
-                json.dumps(req_body) if req_body else None,
-                json.dumps(resp_body) if resp_body else None,
-                json.dumps(req_headers) if req_headers else '{}',
-                json.dumps(resp_headers) if resp_headers else '{}',
-                1.0,  # execution_time_ms
-                is_encrypted,
-                'HTTPS' if is_encrypted else 'HTTP',
-                '[]',  # vulnerabilities (JSON array)
-                client_ip,
-                user_agent
-            ))
-            
-            conn.commit()
-            cur.close()
-            conn.close()
-            return True
-        except Exception as e:
-            logger.error(f"❌ Save error: {e}")
-            return False
-    
-    def packet_callback(self, packet):
-        """Procesar cada paquete capturado"""
-        try:
-            # Verificar que sea TCP con payload
-            if not (IP in packet and TCP in packet and Raw in packet):
-                return
-            
-            ip_src = packet[IP].src
-            ip_dst = packet[IP].dst
-            sport = packet[TCP].sport
-            dport = packet[TCP].dport
-            
-            # Filtrar por puertos de aplicación
-            app_ports = {3000, 8000, 5000, 80, 443}
-            if dport not in app_ports and sport not in app_ports:
-                return
-            
-            payload = bytes(packet[Raw].load)
-            
-            # Solo procesar si contiene HTTP
-            if b'HTTP' not in payload:
-                return
-            
-            # Evitar procesar el mismo paquete dos veces
-            packet_key = f"{ip_src}:{sport}-{ip_dst}:{dport}:{hash(payload)}"
-            if packet_key in self.seen_packets:
-                if time.time() - self.seen_packets[packet_key] < 1:  # Evitar duplicados en 1s
-                    return
-            
-            self.seen_packets[packet_key] = time.time()
-            
-            # Limpiar cache antiguo
-            if len(self.seen_packets) > 1000:
-                cutoff = time.time() - 60
-                self.seen_packets = {k: v for k, v in self.seen_packets.items() if v > cutoff}
-            
-            # Parsear HTTP
-            http_info = self.parse_http(payload)
-            if not http_info:
-                return
-            
-            # Determinar si es request o response
-            is_request = http_info.get('is_request', False)
-            is_response = http_info.get('is_response', False)
-            is_encrypted = dport == 443 or sport == 443
-            
-            # Extraer datos
-            method = http_info.get('method', 'UNKNOWN')
-            endpoint = http_info.get('path', '/')
-            status = http_info.get('status', 200)
-            headers = http_info.get('headers', {})
-            body = http_info.get('body')
-            
-            # Guardar en BD
-            if is_request:
-                self.save_to_db(
-                    method=method,
-                    endpoint=endpoint,
-                    status_code=status,
-                    req_body=body,
-                    resp_body=None,
-                    req_headers=headers,
-                    resp_headers=None,
-                    is_encrypted=is_encrypted,
-                    client_ip=ip_src
-                )
-                logger.info(f"📤 {method} {endpoint} ← {ip_src}:{sport}")
-            
-            elif is_response:
-                self.save_to_db(
-                    method='RESPONSE',
-                    endpoint=endpoint,
-                    status_code=status,
-                    req_body=None,
-                    resp_body=body,
-                    req_headers=None,
-                    resp_headers=headers,
-                    is_encrypted=is_encrypted,
-                    client_ip=ip_src
-                )
-                logger.info(f"📥 HTTP {status} → {ip_dst}:{dport}")
-        
-        except Exception as e:
-            logger.debug(f"Packet error: {e}")
-    
-    def start_sniffing(self):
-        """Iniciar captura de paquetes"""
-        self.running = True
-        logger.info("🔍 Sniffer iniciado: escuchando en eth0...")
-        try:
-            sniff(
-                iface='eth0',
-                prn=self.packet_callback,
-                store=False,
-                filter='tcp port 3000 or tcp port 8000 or tcp port 5000 or tcp port 80 or tcp port 443',
-                stop_filter=lambda x: not self.running
-            )
-        except PermissionError:
-            logger.error("❌ Necesita NET_ADMIN capability")
-        except Exception as e:
-            logger.error(f"❌ Sniff error: {e}")
-    
-    def start(self):
-        """Iniciar sniffer en thread background"""
-        thread = threading.Thread(target=self.start_sniffing, daemon=True)
-        thread.start()
-        logger.info("✅ Packet Sniffer en background")
-
-
-# Instancia global
-sniffer = PacketSniffer()
 
 def start_packet_sniffer():
-    """Función para iniciar desde app.py"""
+    """FunciÃ³n para iniciar desde app.py."""
     sniffer.start()
 
 

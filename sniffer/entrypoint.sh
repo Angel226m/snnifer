@@ -11,4 +11,5 @@ done
 echo "✅ Base de datos lista"
 echo "🚀 Iniciando Sniffer en puerto 5000"
 
-exec gunicorn --bind 0.0.0.0:5000 --workers 2 --timeout 120 --access-logfile - --error-logfile - app:app
+# 1 worker + 8 threads so SSE long-lived connections work properly
+exec gunicorn --bind 0.0.0.0:5000 --workers 1 --threads 8 --timeout 120 --access-logfile - --error-logfile - app:app

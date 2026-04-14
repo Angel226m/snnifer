@@ -87,7 +87,9 @@ services:
     environment:
       FLASK_ENV: production
       PYTHONUNBUFFERED: 1
+      PYTHONIOENCODING: utf-8
       SNIFFER_DB_URL: postgresql://${DB_USER:-postgres}:${DB_PASSWORD:-password}@db:5432/${DB_NAME:-learnwithgaray}
+      BACKEND_URL: http://backend:8000
     cap_add:
       - NET_ADMIN
       - NET_RAW

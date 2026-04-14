@@ -243,7 +243,35 @@ class AdvancedDecoder:
         results['detections']['api_keys'] = AdvancedDecoder.extract_api_keys(data_str)
         results['detections']['urls'] = AdvancedDecoder.extract_urls(data_str)[:5]
         results['detections']['emails'] = AdvancedDecoder.extract_emails(data_str)[:5]
-        
+
+        # ── JWT weakness detection ───────────────────────────────────
+        warnings = []
+        if 'eyJ' in data_str and data_str.count('.') == 2:
+            try:
+                parts = data_str.strip().split('.')
+                pad = lambda s: s + '=' * (4 - len(s) % 4)
+                header = json.loads(base64.urlsafe_b64decode(pad(parts[0])))
+                alg = header.get('alg', '').upper()
+                if alg == 'NONE' or alg == '':
+                    warnings.append('CRITICAL: JWT alg=none — signature completely bypassed (CVE-2015-9235)')
+                elif alg == 'HS256':
+                    warnings.append('MEDIUM: JWT HS256 (symmetric) — secret could be brute-forced with hashcat')
+                elif alg == 'HS384' or alg == 'HS512':
+                    warnings.append('LOW: JWT HMACkeyalg=' + alg + ' — stronger but still symmetric')
+                elif alg in ('RS256', 'RS384', 'RS512', 'ES256', 'ES384', 'ES512'):
+                    warnings.append('SECURE: JWT ' + alg + ' (asymmetric) — cannot be forged without private key')
+                # Check exp claim
+                payload_part = json.loads(base64.urlsafe_b64decode(pad(parts[1])))
+                if 'exp' not in payload_part:
+                    warnings.append('MEDIUM: JWT has no exp claim — token never expires')
+                if payload_part.get('exp', 1) - payload_part.get('iat', 0) > 86400 * 30:
+                    warnings.append('LOW: JWT lifetime > 30 days — consider shorter TTL')
+            except Exception:
+                warnings.append('INFO: JWT-like structure found but could not be fully decoded')
+        if warnings:
+            results['warnings'] = warnings
+        # ────────────────────────────────────────────────────────────
+
         return results
     
     # ==================== PAYLOAD ANALYSIS ====================

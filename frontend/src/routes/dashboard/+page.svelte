@@ -13,14 +13,25 @@
   let stats = { total: 0, encrypted: 0, plaintext: 0 };
 
   onMount(async () => {
-    authStore.subscribe(value => {
-      if (!value.isAuthenticated) goto('/');
+    let interval;
+    const unsub = authStore.subscribe(value => {
+      if (!value.isAuthenticated) {
+        clearInterval(interval);
+        goto('/');
+        return;
+      }
       currentUser = value.user;
     });
+
+    // Check auth once synchronously before making any API calls
+    let auth;
+    authStore.subscribe(v => (auth = v))();
+    if (!auth?.isAuthenticated) return;
+
     await loadClients();
-    // Refresh every 5 seconds
-    const interval = setInterval(loadClients, 5000);
-    return () => clearInterval(interval);
+    // Refresh every 5 seconds only while authenticated
+    interval = setInterval(loadClients, 5000);
+    return () => { clearInterval(interval); unsub(); };
   });
 
   async function loadClients() {

@@ -15,9 +15,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 
+RUN chmod +x /app/entrypoint.sh
+
 EXPOSE 5000
 
-# Script para iniciar sniffer + Flask app
-RUN echo '#!/bin/bash\nset -e\npython -m app &\nwait' > /app/start.sh && chmod +x /app/start.sh
-
-CMD ["python", "-u", "app.py"]
+CMD ["/app/entrypoint.sh"]
