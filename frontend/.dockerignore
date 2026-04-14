@@ -1,0 +1,11 @@
+node_modules
+npm-debug.log
+build
+.svelte-kit
+dist
+
+.git
+.gitignore
+README.md
+*.md
+.DS_Store

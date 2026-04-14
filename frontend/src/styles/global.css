@@ -1,0 +1,52 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .btn {
+    @apply px-4 py-2 rounded-lg font-semibold transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2;
+  }
+
+  .btn-primary {
+    @apply btn bg-blue-700 text-white hover:bg-blue-800 focus:ring-blue-500 disabled:bg-gray-300 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply btn bg-emerald-600 text-white hover:bg-emerald-700 focus:ring-emerald-500 disabled:bg-gray-300 disabled:cursor-not-allowed;
+  }
+
+  .btn-outline {
+    @apply btn border-2 border-blue-700 text-blue-700 hover:bg-blue-50 focus:ring-blue-500;
+  }
+
+  .btn-danger {
+    @apply btn bg-red-600 text-white hover:bg-red-700 focus:ring-red-500 disabled:bg-gray-300 disabled:cursor-not-allowed;
+  }
+
+  .input-field {
+    @apply w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm
+      focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100
+      disabled:bg-gray-50 disabled:text-gray-400 transition-colors duration-150;
+  }
+
+  .card {
+    @apply bg-white rounded-xl shadow-sm border border-gray-100 p-6;
+  }
+
+  .table {
+    @apply w-full border-collapse text-sm;
+  }
+
+  .table th {
+    @apply bg-gray-50 text-gray-500 px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider border-b border-gray-100;
+  }
+
+  .table td {
+    @apply px-5 py-3 text-gray-700 border-b border-gray-50;
+  }
+
+  .table tr:hover td {
+    @apply bg-blue-50;
+  }
+}
+
