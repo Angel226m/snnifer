@@ -1,0 +1,683 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sniffer Dashboard - Wireshark-like</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Courier New', monospace;
+            background: #1a1a1a;
+            color: #e0e0e0;
+            overflow: hidden;
+        }
+        
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        
+        header {
+            background: #0d0d0d;
+            border-bottom: 2px solid #ff6b6b;
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(255, 107, 107, 0.3);
+        }
+        
+        h1 {
+            color: #ff6b6b;
+            font-size: 1.5em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .stats {
+            display: flex;
+            gap: 25px;
+            font-size: 0.85em;
+        }
+        
+        .stat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .stat-label {
+            color: #888;
+            font-size: 0.8em;
+        }
+        
+        .stat-value {
+            color: #4ecdc4;
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+        
+        .stat.critical .stat-value {
+            color: #ff6b6b;
+        }
+        
+        .main-content {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            gap: 10px;
+            padding: 10px;
+        }
+        
+        /* Tabla de paquetes */
+        .packets-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        
+        .packets-header {
+            background: #0d0d0d;
+            padding: 10px 15px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .filter-input {
+            background: #2a2a2a;
+            border: 1px solid #444;
+            color: #e0e0e0;
+            padding: 8px 12px;
+            border-radius: 4px;
+            font-size: 0.85em;
+            font-family: monospace;
+        }
+        
+        .filter-btn {
+            background: #ff6b6b;
+            border: none;
+            color: white;
+            padding: 8px 15px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.85em;
+            transition: background 0.3s;
+        }
+        
+        .filter-btn:hover {
+            background: #ff5252;
+        }
+        
+        .packets-list {
+            flex: 1;
+            overflow-y: auto;
+            border-top: 1px solid #333;
+        }
+        
+        .packet-row {
+            padding: 10px 15px;
+            border-bottom: 1px solid #222;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: grid;
+            grid-template-columns: 80px 50px 150px 100px 120px 1fr;
+            gap: 15px;
+            align-items: center;
+            font-size: 0.85em;
+        }
+        
+        .packet-row:hover {
+            background: #2a2a2a;
+        }
+        
+        .packet-row.selected {
+            background: #3a3a3a;
+            border-left: 3px solid #ff6b6b;
+        }
+        
+        .packet-method {
+            font-weight: bold;
+            color: #4ecdc4;
+            text-align: center;
+        }
+        
+        .packet-status {
+            text-align: center;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+        
+        .packet-status.success {
+            background: #26de81;
+            color: #0d0d0d;
+        }
+        
+        .packet-status.error {
+            background: #ff6b6b;
+            color: white;
+        }
+        
+        .packet-status.warning {
+            background: #fed330;
+            color: #0d0d0d;
+        }
+        
+        .packet-risk {
+            text-align: center;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-weight: bold;
+        }
+        
+        .packet-risk.critical {
+            background: #ff6b6b;
+            color: white;
+        }
+        
+        .packet-risk.high {
+            background: #ffa500;
+            color: white;
+        }
+        
+        .packet-risk.medium {
+            background: #fed330;
+            color: #0d0d0d;
+        }
+        
+        .packet-risk.low {
+            background: #26de81;
+            color: #0d0d0d;
+        }
+        
+        .packet-endpoint {
+            color: #888;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .packet-time {
+            color: #666;
+            font-size: 0.8em;
+        }
+        
+        /* Panel de detalles */
+        .detail-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: #1a1a1a;
+            border: 1px solid #333;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        
+        .detail-header {
+            background: #0d0d0d;
+            padding: 15px;
+            border-bottom: 1px solid #333;
+            font-weight: bold;
+            color: #4ecdc4;
+        }
+        
+        .detail-content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+        }
+        
+        .detail-section {
+            margin-bottom: 20px;
+            border-left: 3px solid #ff6b6b;
+            padding-left: 15px;
+        }
+        
+        .detail-section-title {
+            color: #ff6b6b;
+            font-weight: bold;
+            margin-bottom: 10px;
+            font-size: 0.95em;
+        }
+        
+        .detail-item {
+            margin-bottom: 8px;
+            padding: 8px;
+            background: #2a2a2a;
+            border-radius: 3px;
+            border-left: 2px solid #444;
+        }
+        
+        .detail-label {
+            color: #888;
+            font-size: 0.8em;
+            text-transform: uppercase;
+        }
+        
+        .detail-value {
+            color: #e0e0e0;
+            font-size: 0.9em;
+            word-break: break-all;
+            margin-top: 5px;
+            font-weight: monospace;
+        }
+        
+        .detail-value.critical {
+            color: #ff6b6b;
+            font-weight: bold;
+        }
+        
+        .detail-value.warning {
+            color: #ffa500;
+            font-weight: bold;
+        }
+        
+        /* Colores por protocolo */
+        .protocol-http {
+            color: #4ecdc4;
+        }
+        
+        .protocol-https {
+            color: #26de81;
+        }
+        
+        .protocol-ws {
+            color: #a78bfa;
+        }
+        
+        /* Scroll personalizado */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #1a1a1a;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #444;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #888;
+        }
+        
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #333;
+            border-left-color: #ff6b6b;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .empty-state {
+            color: #666;
+            text-align: center;
+            padding: 40px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>
+                <span style="color: #ff6b6b;">📡</span>
+                Sniffer Dashboard (Wireshark-like)
+            </h1>
+            <div class="stats">
+                <div class="stat">
+                    <span class="stat-label">Total Packets</span>
+                    <span class="stat-value" id="stat-total">0</span>
+                </div>
+                <div class="stat critical">
+                    <span class="stat-label">🚨 CRITICAL</span>
+                    <span class="stat-value" id="stat-critical">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">⚠️ HIGH</span>
+                    <span class="stat-value" id="stat-high">0</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Unencrypted</span>
+                    <span class="stat-value" id="stat-unencrypted">0</span>
+                </div>
+            </div>
+        </header>
+        
+        <div class="main-content">
+            <!-- Panel de paquetes -->
+            <div class="packets-panel">
+                <div class="packets-header">
+                    <input type="text" class="filter-input" id="filter-endpoint" placeholder="Filter by endpoint..." />
+                    <select class="filter-input" id="filter-risk">
+                        <option value="">All Risks</option>
+                        <option value="CRITICAL">🚨 CRITICAL</option>
+                        <option value="HIGH">⚠️ HIGH</option>
+                        <option value="MEDIUM">⚡ MEDIUM</option>
+                        <option value="LOW">✓ LOW</option>
+                    </select>
+                    <button class="filter-btn" onclick="clearPackets()">Clear</button>
+                </div>
+                <div class="packets-list" id="packets-list">
+                    <div class="empty-state">
+                        <div class="spinner"></div>
+                        <p>Waiting for packets...</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Panel de detalles -->
+            <div class="detail-panel">
+                <div class="detail-header" id="detail-header">
+                    Select a packet to view details
+                </div>
+                <div class="detail-content" id="detail-content">
+                    <div class="empty-state">
+                        👈 Select a packet from the list to see detailed information
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let packets = [];
+        let selectedPacket = null;
+        let eventSource = null;
+        
+        // Conectar a SSE
+        function connectSSE() {
+            eventSource = new EventSource('/api/sse');
+            
+            eventSource.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                if (data.type === 'packet') {
+                    addPacket(data.data);
+                }
+            };
+            
+            eventSource.onerror = () => {
+                console.error('SSE connection error');
+                setTimeout(connectSSE, 3000);
+            };
+        }
+        
+        // Agregar paquete a la lista
+        function addPacket(packet) {
+            packets.unshift(packet);  // Agregar al inicio
+            if (packets.length > 500) packets.pop();  // Limitar a 500
+            
+            renderPackets();
+            updateStats();
+        }
+        
+        // Renderizar lista de paquetes
+        function renderPackets() {
+            const list = document.getElementById('packets-list');
+            
+            if (packets.length === 0) {
+                list.innerHTML = '<div class="empty-state">No packets captured yet</div>';
+                return;
+            }
+            
+            const endpoint = document.getElementById('filter-endpoint').value.toLowerCase();
+            const risk = document.getElementById('filter-risk').value;
+            
+            const filtered = packets.filter(p => {
+                const matchEndpoint = !endpoint || p.endpoint.toLowerCase().includes(endpoint);
+                const matchRisk = !risk || p.risk_level === risk;
+                return matchEndpoint && matchRisk;
+            });
+            
+            list.innerHTML = filtered.map(p => `
+                <div class="packet-row ${selectedPacket?.id === p.id ? 'selected' : ''}" 
+                     onclick="selectPacket(${p.id})">
+                    <div class="packet-method">${p.method || 'UNKNOWN'}</div>
+                    <div class="packet-status ${getStatusClass(p.status_code)}">
+                        ${p.status_code || '-'}
+                    </div>
+                    <div class="packet-endpoint">${p.endpoint}</div>
+                    <div class="packet-risk ${p.risk_level?.toLowerCase() || 'low'}">
+                        ${p.risk_level || 'UNKNOWN'}
+                    </div>
+                    <div class="packet-time">${new Date(p.timestamp).toLocaleTimeString()}</div>
+                    <div style="text-align: right; font-size: 0.8em; color: #666;">
+                        ${p.is_encrypted ? '🔒' : '⚠️'} ${p.direction}
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Seleccionar paquete
+        function selectPacket(id) {
+            selectedPacket = packets.find(p => p.id === id);
+            renderPackets();
+            showPacketDetail();
+        }
+        
+        // Mostrar detalle del paquete
+        function showPacketDetail() {
+            const detail = document.getElementById('detail-content');
+            const header = document.getElementById('detail-header');
+            
+            if (!selectedPacket) {
+                detail.innerHTML = '<div class="empty-state">Select a packet to view details</div>';
+                return;
+            }
+            
+            const p = selectedPacket;
+            const analysis = p.payload_analysis || {};
+            const req = analysis.request || {};
+            const resp = analysis.response || {};
+            
+            let html = `
+                <div class="detail-section">
+                    <div class="detail-section-title">📋 Request Info</div>
+                    <div class="detail-item">
+                        <div class="detail-label">Method</div>
+                        <div class="detail-value">${p.method}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Endpoint</div>
+                        <div class="detail-value">${p.endpoint}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Status Code</div>
+                        <div class="detail-value">${p.status_code}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Direction</div>
+                        <div class="detail-value">${p.direction}</div>
+                    </div>
+                    <div class="detail-item">
+                        <div class="detail-label">Encrypted</div>
+                        <div class="detail-value">${p.is_encrypted ? '✓ Yes' : '✗ No (Plain HTTP)'}</div>
+                    </div>
+                </div>
+            `;
+            
+            // Mostrar datos sensibles encontrados
+            if (req.emails?.length || req.passwords?.length || req.api_keys?.length) {
+                html += '<div class="detail-section">';
+                html += '<div class="detail-section-title">🚨 Sensitive Data in REQUEST</div>';
+                
+                if (req.passwords?.length) {
+                    html += '<div class="detail-item">';
+                    html += '<div class="detail-label critical">🔑 PLAINTEXT PASSWORDS FOUND!</div>';
+                    req.passwords.forEach(pwd => {
+                        html += `<div class="detail-value critical">${pwd}</div>`;
+                    });
+                    html += '</div>';
+                }
+                
+                if (req.api_keys?.length) {
+                    html += '<div class="detail-item">';
+                    html += '<div class="detail-label critical">🔐 API KEYS EXPOSED!</div>';
+                    req.api_keys.forEach(key => {
+                        html += `<div class="detail-value critical">${key}</div>`;
+                    });
+                    html += '</div>';
+                }
+                
+                if (req.emails?.length) {
+                    html += '<div class="detail-item">';
+                    html += '<div class="detail-label">✉️ Emails</div>';
+                    req.emails.forEach(email => {
+                        html += `<div class="detail-value">${email}</div>`;
+                    });
+                    html += '</div>';
+                }
+                
+                html += '</div>';
+            }
+            
+            // Mostrar datos en respuesta
+            if (resp.emails?.length || resp.passwords?.length) {
+                html += '<div class="detail-section">';
+                html += '<div class="detail-section-title">🚨 Sensitive Data in RESPONSE</div>';
+                
+                if (resp.passwords?.length) {
+                    html += '<div class="detail-item">';
+                    html += '<div class="detail-label critical">🔑 PASSWORDS IN RESPONSE!</div>';
+                    resp.passwords.forEach(pwd => {
+                        html += `<div class="detail-value critical">${pwd}</div>`;
+                    });
+                    html += '</div>';
+                }
+                
+                if (resp.emails?.length) {
+                    html += '<div class="detail-item">';
+                    html += '<div class="detail-label">✉️ Emails</div>';
+                    resp.emails.forEach(email => {
+                        html += `<div class="detail-value">${email}</div>`;
+                    });
+                    html += '</div>';
+                }
+                
+                html += '</div>';
+            }
+            
+            // Mostrar tokens
+            if (req.tokens?.length) {
+                html += '<div class="detail-section">';
+                html += '<div class="detail-section-title">🔐 Tokens/JWT in REQUEST</div>';
+                req.tokens.forEach(token => {
+                    html += `
+                        <div class="detail-item">
+                            <div class="detail-label">Token</div>
+                            <div class="detail-value" style="font-size: 0.8em;">${token.substring(0, 100)}...</div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+            
+            // Vulnerabilidades
+            if (p.vulnerabilities?.length) {
+                html += '<div class="detail-section">';
+                html += '<div class="detail-section-title">⚠️ Vulnerabilities Detected</div>';
+                p.vulnerabilities.forEach(vuln => {
+                    const severity = vuln.severity?.toLowerCase() || 'medium';
+                    html += `
+                        <div class="detail-item">
+                            <div class="detail-label ${severity}">[${vuln.severity}] ${vuln.type}</div>
+                            <div class="detail-value">${vuln.description}</div>
+                        </div>
+                    `;
+                });
+                html += '</div>';
+            }
+            
+            // Raw payload
+            if (req.raw_text) {
+                html += '<div class="detail-section">';
+                html += '<div class="detail-section-title">📝 Raw Request Payload</div>';
+                html += `<div class="detail-item"><div class="detail-value" style="font-size: 0.75em; max-height: 200px; overflow-y: auto; white-space: pre-wrap; word-break: break-word;">${escapeHtml(req.raw_text.substring(0, 500))}</div></div>`;
+                html += '</div>';
+            }
+            
+            header.textContent = `📦 Packet #${p.id} - ${p.method} ${p.endpoint} [${p.risk_level}]`;
+            detail.innerHTML = html;
+        }
+        
+        // Helpers
+        function getStatusClass(status) {
+            if (!status) return 'warning';
+            if (status >= 200 && status < 300) return 'success';
+            if (status >= 400) return 'error';
+            return 'warning';
+        }
+        
+        function updateStats() {
+            const critical = packets.filter(p => p.risk_level === 'CRITICAL').length;
+            const high = packets.filter(p => p.risk_level === 'HIGH').length;
+            const unencrypted = packets.filter(p => !p.is_encrypted).length;
+            
+            document.getElementById('stat-total').textContent = packets.length;
+            document.getElementById('stat-critical').textContent = critical;
+            document.getElementById('stat-high').textContent = high;
+            document.getElementById('stat-unencrypted').textContent = unencrypted;
+        }
+        
+        function clearPackets() {
+            packets = [];
+            selectedPacket = null;
+            renderPackets();
+            showPacketDetail();
+            updateStats();
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Event listeners
+        document.getElementById('filter-endpoint').addEventListener('input', renderPackets);
+        document.getElementById('filter-risk').addEventListener('change', renderPackets);
+        
+        // Iniciar
+        document.addEventListener('DOMContentLoaded', () => {
+            connectSSE();
+            // Cargar paquetes existentes
+            fetch('/api/packets?limit=100')
+                .then(r => r.json())
+                .then(data => {
+                    packets = data.packets || [];
+                    renderPackets();
+                    updateStats();
+                })
+                .catch(e => console.error('Error loading packets:', e));
+        });
+    </script>
+</body>
+</html>

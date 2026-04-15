@@ -1,0 +1,1030 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Network Sniffer v3 - Dashboard Mejorado</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-dark: #0d1117;
+            --bg-darker: #010409;
+            --bg-light: #161b22;
+            --border: #30363d;
+            --text-primary: #c9d1d9;
+            --text-secondary: #8b949e;
+            --green: #3fb950;
+            --blue: #58a6ff;
+            --yellow: #d29922;
+            --orange: #fb8500;
+            --red: #f85149;
+            --purple: #bc8cff;
+            --cyan: #39d353;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Courier New', monospace;
+            background: var(--bg-dark);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* ╔══════════════════════════════════════════════════════════════╗ */
+        /* ║                      HEADER / TOPBAR                          ║ */
+        /* ╚══════════════════════════════════════════════════════════════╝ */
+
+        #topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: linear-gradient(180deg, var(--bg-light) 0%, var(--bg-dark) 100%);
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+            gap: 16px;
+        }
+
+        .logo-section {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .logo-circle {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--blue), var(--purple));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: white;
+            font-size: 16px;
+        }
+
+        .logo-text h1 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin: 0;
+        }
+
+        .logo-text p {
+            font-size: 11px;
+            color: var(--text-secondary);
+            margin: 0;
+        }
+
+        .stats-section {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .stat-box {
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 60px;
+        }
+
+        .stat-number {
+            font-size: 18px;
+            font-weight: bold;
+            color: var(--blue);
+        }
+
+        .stat-label {
+            color: var(--text-secondary);
+            font-size: 10px;
+            margin-top: 2px;
+        }
+
+        .stat-box.critical {
+            border-color: var(--red);
+            background: rgba(248, 81, 73, 0.1);
+        }
+
+        .stat-box.critical .stat-number {
+            color: var(--red);
+        }
+
+        .stat-box.high {
+            border-color: var(--orange);
+            background: rgba(251, 133, 0, 0.1);
+        }
+
+        .stat-box.high .stat-number {
+            color: var(--orange);
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--red);
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.live {
+            background: var(--green);
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 6px;
+        }
+
+        button {
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            border-radius: 6px;
+            padding: 6px 12px;
+            cursor: pointer;
+            font-size: 12px;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            border-color: var(--blue);
+            color: var(--blue);
+        }
+
+        button.danger {
+            border-color: var(--red);
+            color: var(--red);
+        }
+
+        button.danger:hover {
+            background: rgba(248, 81, 73, 0.1);
+        }
+
+        /* ╔══════════════════════════════════════════════════════════════╗ */
+        /* ║                       MAIN LAYOUT                             ║ */
+        /* ╚══════════════════════════════════════════════════════════════╝ */
+
+        .container {
+            display: flex;
+            height: calc(100vh - 60px);
+            gap: 0;
+        }
+
+        /* Left Panel - Lista de Paquetes */
+        #left-panel {
+            display: flex;
+            flex-direction: column;
+            width: 45%;
+            border-right: 1px solid var(--border);
+            min-width: 300px;
+            background: var(--bg-dark);
+        }
+
+        /* Right Panel - Detalles */
+        #right-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: var(--bg-dark);
+            overflow: hidden;
+        }
+
+        /* ╔══════════════════════════════════════════════════════════════╗ */
+        /* ║                     PACKET LIST                               ║ */
+        /* ╚══════════════════════════════════════════════════════════════╝ */
+
+        #filter-bar {
+            padding: 8px 12px;
+            background: var(--bg-light);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            gap: 6px;
+            flex-shrink: 0;
+        }
+
+        #filter-bar input, #filter-bar select {
+            background: var(--bg-dark);
+            border: 1px solid var(--border);
+            color: var(--text-primary);
+            border-radius: 4px;
+            padding: 6px 8px;
+            font-size: 12px;
+            font-family: inherit;
+        }
+
+        #filter-bar input {
+            flex: 1;
+            min-width: 120px;
+        }
+
+        #packet-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0;
+        }
+
+        #packet-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #packet-list::-webkit-scrollbar-track {
+            background: var(--bg-dark);
+        }
+
+        #packet-list::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+
+        .packet-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--border);
+            cursor: pointer;
+            transition: background 0.15s;
+            gap: 8px;
+        }
+
+        .packet-item:hover {
+            background: var(--bg-light);
+        }
+
+        .packet-item.selected {
+            background: var(--bg-light);
+            border-left: 3px solid var(--blue);
+            padding-left: 9px;
+        }
+
+        .packet-item.critical {
+            border-left: 3px solid var(--red);
+        }
+
+        .packet-item.critical.selected {
+            border-left: 3px solid var(--red);
+        }
+
+        .packet-item.high {
+            border-left: 3px solid var(--orange);
+        }
+
+        .packet-item.medium {
+            border-left: 3px solid var(--yellow);
+        }
+
+        .risk-indicator {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        .risk-critical {
+            background: rgba(248, 81, 73, 0.2);
+            color: var(--red);
+            border: 1px solid var(--red);
+        }
+
+        .risk-high {
+            background: rgba(251, 133, 0, 0.2);
+            color: var(--orange);
+            border: 1px solid var(--orange);
+        }
+
+        .risk-medium {
+            background: rgba(210, 153, 34, 0.2);
+            color: var(--yellow);
+            border: 1px solid var(--yellow);
+        }
+
+        .risk-low {
+            background: rgba(63, 185, 80, 0.2);
+            color: var(--green);
+            border: 1px solid var(--green);
+        }
+
+        .packet-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .packet-header {
+            display: flex;
+            gap: 8px;
+            align-items: baseline;
+            margin-bottom: 4px;
+        }
+
+        .method-badge {
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        .method-badge.GET {
+            background: rgba(63, 185, 80, 0.2);
+            color: var(--green);
+        }
+
+        .method-badge.POST {
+            background: rgba(88, 166, 255, 0.2);
+            color: var(--blue);
+        }
+
+        .method-badge.PUT {
+            background: rgba(210, 153, 34, 0.2);
+            color: var(--yellow);
+        }
+
+        .method-badge.PATCH {
+            background: rgba(188, 140, 255, 0.2);
+            color: var(--purple);
+        }
+
+        .method-badge.DELETE {
+            background: rgba(248, 81, 73, 0.2);
+            color: var(--red);
+        }
+
+        .endpoint {
+            flex: 1;
+            font-size: 12px;
+            color: var(--text-primary);
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .packet-footer {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            color: var(--text-secondary);
+        }
+
+        #no-packets {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-secondary);
+            text-align: center;
+            font-size: 13px;
+        }
+
+        /* ╔══════════════════════════════════════════════════════════════╗ */
+        /* ║                   DETAILS PANEL (RIGHT)                       ║ */
+        /* ╚══════════════════════════════════════════════════════════════╝ */
+
+        #details-header {
+            padding: 12px 16px;
+            background: var(--bg-light);
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        #details-header h2 {
+            font-size: 13px;
+            color: var(--text-primary);
+            margin: 0 0 6px 0;
+        }
+
+        #details-meta {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px;
+            font-size: 11px;
+        }
+
+        .meta-item {
+            display: flex;
+            justify-content: space-between;
+            color: var(--text-secondary);
+        }
+
+        .meta-value {
+            color: var(--blue);
+            font-weight: 500;
+        }
+
+        #details-content {
+            flex: 1;
+            overflow: auto;
+            padding: 16px;
+        }
+
+        #details-content::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #details-content::-webkit-scrollbar-track {
+            background: var(--bg-dark);
+        }
+
+        #details-content::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 3px;
+        }
+
+        .section {
+            margin-bottom: 20px;
+        }
+
+        .section-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--blue);
+            margin-bottom: 8px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid var(--border);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .json-viewer {
+            background: var(--bg-darker);
+            border: 2px solid var(--blue);
+            border-radius: 8px;
+            padding: 16px;
+            font-family: 'Monaco', 'Menlo', 'Courier New', monospace;
+            font-size: 13px;
+            overflow: auto;
+            max-height: 500px;
+            line-height: 1.9;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            box-shadow: 0 0 15px rgba(88, 166, 255, 0.1);
+        }
+
+        .json-viewer .jk  { color: #79c0ff; font-weight: 600; }   /* key   */
+        .json-viewer .js  { color: #a5d6a7; }                      /* string*/
+        .json-viewer .jn  { color: #ffd54f; font-weight: 500; }    /* number*/
+        .json-viewer .jb  { color: #ce93d8; font-weight: 600; }    /* bool  */
+        .json-viewer .jnu { color: var(--text-secondary); }        /* null  */
+
+        .json-key {
+            color: var(--blue);
+            font-weight: 600;
+        }
+
+        .json-string {
+            color: var(--green);
+        }
+
+        .json-number {
+            color: var(--yellow);
+            font-weight: 500;
+        }
+
+        .json-boolean {
+            color: var(--purple);
+            font-weight: 600;
+        }
+
+        .json-null {
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+
+        /* JSON Pretty Print */
+        .json-line {
+            margin: 4px 0;
+        }
+
+        .json-indent-1 { margin-left: 20px; }
+        .json-indent-2 { margin-left: 40px; }
+        .json-indent-3 { margin-left: 60px; }
+
+        /* Sensitive Data Display */
+        .sensitive-items {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .data-tag {
+            background: var(--bg-darker);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 6px 10px;
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .data-tag.password {
+            border-color: var(--red);
+            background: rgba(248, 81, 73, 0.1);
+        }
+
+        .data-tag.password::before {
+            content: '🔐';
+        }
+
+        .data-tag.email {
+            border-color: var(--blue);
+            background: rgba(88, 166, 255, 0.1);
+        }
+
+        .data-tag.email::before {
+            content: '📧';
+        }
+
+        .data-tag.phone {
+            border-color: var(--yellow);
+            background: rgba(210, 153, 34, 0.1);
+        }
+
+        .data-tag.phone::before {
+            content: '📱';
+        }
+
+        .data-tag.token {
+            border-color: var(--purple);
+            background: rgba(188, 140, 255, 0.1);
+        }
+
+        .data-tag.token::before {
+            content: '🔑';
+        }
+
+        .data-tag.personal {
+            border-color: var(--cyan);
+            background: rgba(57, 211, 83, 0.1);
+        }
+
+        .data-tag.personal::before {
+            content: '👤';
+        }
+
+        .data-tag.document {
+            border-color: var(--orange);
+            background: rgba(251, 133, 0, 0.1);
+        }
+
+        .data-tag.document::before {
+            content: '🪪';
+        }
+
+        /* Route arrow badge */
+        .route-arrow {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            background: rgba(88, 166, 255, 0.1);
+            border: 1px solid rgba(88, 166, 255, 0.3);
+            color: var(--blue);
+            white-space: nowrap;
+        }
+
+        .data-value {
+            color: var(--text-primary);
+            word-break: break-all;
+        }
+
+        /* Empty State */
+        #empty-details {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: var(--text-secondary);
+            font-size: 13px;
+            text-align: center;
+        }
+
+        /* ╔══════════════════════════════════════════════════════════════╗ */
+        /* ║                    RESPONSIVE                                 ║ */
+        /* ╚══════════════════════════════════════════════════════════════╝ */
+
+        @media (max-width: 1024px) {
+            .container {
+                flex-direction: column;
+            }
+
+            #left-panel {
+                width: 100%;
+                height: 50%;
+                border-right: none;
+                border-bottom: 1px solid var(--border);
+            }
+
+            #right-panel {
+                height: 50%;
+            }
+        }
+
+        /* Animations */
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .packet-item {
+            animation: slideIn 0.3s ease-out;
+        }
+    </style>
+</head>
+<body>
+    <!-- ╔════════════════════════════════════════════════════════════════╗ -->
+    <!-- ║                         TOP BAR                                 ║ -->
+    <!-- ╚════════════════════════════════════════════════════════════════╝ -->
+    <div id="topbar">
+        <div class="logo-section">
+            <div class="logo-circle">📡</div>
+            <div class="logo-text">
+                <h1>Network Sniffer v3</h1>
+                <p>Dashboard de Captura de Datos</p>
+            </div>
+        </div>
+
+        <div class="stats-section">
+            <div class="stat-box">
+                <div class="stat-number" id="stat-total">0</div>
+                <div class="stat-label">Paquetes</div>
+            </div>
+            <div class="stat-box critical">
+                <div class="stat-number" id="stat-critical">0</div>
+                <div class="stat-label">Críticos</div>
+            </div>
+            <div class="stat-box high">
+                <div class="stat-number" id="stat-high">0</div>
+                <div class="stat-label">Altos</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-number" id="stat-requests">0</div>
+                <div class="stat-label">Requests</div>
+            </div>
+        </div>
+
+        <div class="status-indicator">
+            <div class="status-dot live" id="status-dot"></div>
+            <span id="status-text">En línea</span>
+        </div>
+
+        <div class="btn-group">
+            <button onclick="refreshData()">🔄 Actualizar</button>
+            <button class="danger" onclick="clearData()">🗑️ Limpiar</button>
+        </div>
+    </div>
+
+    <!-- ╔════════════════════════════════════════════════════════════════╗ -->
+    <!-- ║                     MAIN CONTAINER                              ║ -->
+    <!-- ╚════════════════════════════════════════════════════════════════╝ -->
+    <div class="container">
+        <!-- LEFT PANEL - Packet List -->
+        <div id="left-panel">
+            <div id="filter-bar">
+                <input type="text" id="filter-input" placeholder="Filtrar por endpoint...">
+                <select id="filter-risk">
+                    <option value="">Todos los riesgos</option>
+                    <option value="CRÍTICO">⛔ Crítico</option>
+                    <option value="ALTO">🟠 Alto</option>
+                    <option value="MEDIO">🟡 Medio</option>
+                    <option value="BAJO">🟢 Bajo</option>
+                </select>
+            </div>
+            <div id="packet-list"></div>
+        <div id="no-packets" style="display:none; padding:24px; text-align:center; color:var(--text-secondary);">
+            <p style="font-size:28px; margin-bottom:8px;">📡</p>
+            <p>Esperando tráfico real...</p>
+            <small>Los paquetes aparecerán cuando el frontend envíe datos al backend</small>
+        </div>
+        </div>
+
+        <!-- RIGHT PANEL - Packet Details -->
+        <div id="right-panel">
+            <div id="details-header" style="display: none;">
+                <h2 id="detail-title">Detalles del Paquete</h2>
+                <div id="details-meta"></div>
+            </div>
+            <div id="details-content">
+                <div id="empty-details">
+                    <p>👈 Selecciona un paquete para ver los detalles</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let allPackets = [];
+        let selectedPacket = null;
+
+        // ════════════════════════════════════════════════════════
+        // Mapeo de niveles de riesgo a clases CSS
+        // ════════════════════════════════════════════════════════
+        const RISK_CSS = {
+            'CRÍTICO': 'critical',
+            'ALTO':    'high',
+            'MEDIO':   'medium',
+            'BAJO':    'low'
+        };
+        function riskClass(level) { return RISK_CSS[level] || 'low'; }
+
+        // Abreviatura para el indicador circular
+        const RISK_ABBR = {
+            'CRÍTICO': 'CR', 'ALTO': 'AL', 'MEDIO': 'ME', 'BAJO': 'BA'
+        };
+
+        // ════════════════════════════════════════════════════════
+        // JSON con colores (como Wireshark)
+        // ════════════════════════════════════════════════════════
+        function syntaxHighlight(obj) {
+            let str = typeof obj === 'string' ? obj : JSON.stringify(obj, null, 2);
+            // escape HTML first
+            str = str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+            return str
+              // keys
+              .replace(/("[^"]+")(\s*:)/g, '<span class="jk">$1</span>$2')
+              // string values
+              .replace(/:\s*("[^"]*")/g, ': <span class="js">$1</span>')
+              // number values
+              .replace(/:\s*(-?\d+\.?\d*)/g, ': <span class="jn">$1</span>')
+              // boolean
+              .replace(/:\s*(true|false)/g, ': <span class="jb">$1</span>')
+              // null
+              .replace(/:\s*(null)/g, ': <span class="jnu">$1</span>');
+        }
+
+        // ════════════════════════════════════════════════════════
+        // CARGA INICIAL + SSE (tiempo real sin simulación)
+        // ════════════════════════════════════════════════════════
+        async function loadPackets() {
+            try {
+                const response = await fetch('/api/packets');
+                const data = await response.json();
+                allPackets = data.packets || [];
+                renderPackets();
+                updateStats();
+            } catch (error) {
+                console.error('Error cargando paquetes:', error);
+            }
+        }
+
+        function connectSSE() {
+            const es = new EventSource('/api/stream');
+            es.onmessage = (e) => {
+                try {
+                    const packet = JSON.parse(e.data);
+                    if (!allPackets.find(p => p.id === packet.id)) {
+                        allPackets.push(packet);
+                        renderPackets(true);   // true = mantener scroll
+                        updateStats();
+                    }
+                } catch (_) {}
+            };
+            es.onerror = () => {
+                es.close();
+                setTimeout(connectSSE, 3000);  // reconectar
+            };
+        }
+
+        function renderPackets(keepScroll = false) {
+            const list = document.getElementById('packet-list');
+            const noPackets = document.getElementById('no-packets');
+
+            const filterInput = document.getElementById('filter-input').value.toLowerCase();
+            const filterRisk  = document.getElementById('filter-risk').value;
+
+            const filtered = allPackets.filter(p => {
+                const matchesEndpoint = p.endpoint.toLowerCase().includes(filterInput);
+                const matchesRisk = !filterRisk || p.risk_level === filterRisk;
+                return matchesEndpoint && matchesRisk;
+            });
+
+            if (filtered.length === 0) {
+                list.innerHTML = '';
+                noPackets.style.display = 'block';
+                return;
+            }
+
+            noPackets.style.display = 'none';
+            const scrollTop = keepScroll ? list.scrollTop : null;
+
+            list.innerHTML = filtered.map(packet => {
+                const rc = riskClass(packet.risk_level);
+                const isSelected = selectedPacket?.id === packet.id ? 'selected' : '';
+                const src  = packet.source      || packet.direction || '';
+                const dst  = packet.destination || '';
+                const routeLabel = dst ? `${src} → ${dst}` : src;
+                return `
+                <div class="packet-item ${rc} ${isSelected}"
+                     onclick="selectPacket(${packet.id})">
+                    <div class="risk-indicator risk-${rc}">${RISK_ABBR[packet.risk_level] || '?'}</div>
+                    <div class="packet-info">
+                        <div class="packet-header">
+                            <span class="method-badge ${packet.method}">${packet.method}</span>
+                            <span class="endpoint">${escapeHtml(packet.endpoint)}</span>
+                        </div>
+                        <div class="packet-footer">
+                            <span class="route-arrow">${escapeHtml(routeLabel)}</span>
+                            <span>${new Date(packet.timestamp).toLocaleTimeString('es-ES')}</span>
+                            <span>${packet.size_bytes} B</span>
+                        </div>
+                    </div>
+                </div>`;
+            }).join('');
+
+            if (keepScroll && scrollTop !== null) list.scrollTop = scrollTop;
+        }
+
+        function selectPacket(packetId) {
+            selectedPacket = allPackets.find(p => p.id === packetId);
+            if (selectedPacket) {
+                renderDetails();
+                renderPackets(); // Re-render para mostrar selección
+            }
+        }
+
+        function clearDetailsPanel() {
+            document.getElementById('details-header').style.display = 'none';
+            document.getElementById('details-content').innerHTML =
+                '<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--text-secondary);font-size:13px;"><p>👈 Selecciona un paquete para ver los detalles</p></div>';
+        }
+
+        function renderDetails() {
+            if (!selectedPacket) { clearDetailsPanel(); return; }
+
+            const pk     = selectedPacket;
+            const header  = document.getElementById('details-header');
+            const content = document.getElementById('details-content');
+            const title   = document.getElementById('detail-title');
+            const meta    = document.getElementById('details-meta');
+            const rc      = riskClass(pk.risk_level);
+            const routeLabel = pk.destination ? `${pk.source} → ${pk.destination}` : (pk.direction || '');
+
+            header.style.display = 'block';
+
+            title.innerHTML = `
+                <span class="method-badge ${pk.method}" style="font-size:13px;padding:3px 8px">${pk.method}</span>
+                <code style="color:var(--blue);margin-left:8px">${escapeHtml(pk.endpoint)}</code>
+                <span class="route-arrow" style="margin-left:8px">${escapeHtml(routeLabel)}</span>`;
+
+            const riskColor = rc === 'critical' ? 'var(--red)' : rc === 'high' ? 'var(--orange)' : rc === 'medium' ? 'var(--yellow)' : 'var(--green)';
+            meta.innerHTML = `
+                <div class="meta-item"><span>Hora:</span>
+                    <span class="meta-value">${new Date(pk.timestamp).toLocaleString('es-ES')}</span></div>
+                <div class="meta-item"><span>Tamaño:</span>
+                    <span class="meta-value">${pk.size_bytes} bytes</span></div>
+                <div class="meta-item"><span>Riesgo:</span>
+                    <span class="meta-value" style="color:${riskColor}">${pk.risk_level}</span></div>
+                ${pk.status_code ? `<div class="meta-item"><span>HTTP Status:</span><span class="meta-value">${pk.status_code}</span></div>` : ''}`;
+
+            let html = '';
+
+            // ── Payload JSON con syntax highlight ────────────────────────
+            if (pk.payload && (pk.is_json || typeof pk.payload === 'object')) {
+                html += `
+                    <div class="section">
+                        <div class="section-title">📦 Datos Enviados (JSON en texto plano)</div>
+                        <div class="json-viewer">${syntaxHighlight(pk.payload)}</div>
+                    </div>`;
+            } else if (pk.payload) {
+                html += `
+                    <div class="section">
+                        <div class="section-title">📄 Payload (texto)</div>
+                        <div class="json-viewer">${escapeHtml(String(pk.payload))}</div>
+                    </div>`;
+            }
+
+            // ── Datos sensibles ──────────────────────────────────────────
+            const sens = pk.sensitive_data || {};
+            const hasSensitive = Object.values(sens).some(arr => Array.isArray(arr) && arr.length > 0);
+
+            if (hasSensitive) {
+                html += `<div class="section"><div class="section-title">⚠️ Datos Expuestos Detectados</div>`;
+
+                const tags = (items, cls) => (items || []).map(v =>
+                    `<div class="data-tag ${cls}"><span class="data-value">${escapeHtml(String(v))}</span></div>`
+                ).join('');
+                const block = (items, cls, label) => items && items.length
+                    ? `<div style="margin-bottom:10px"><strong style="color:var(--text-primary);font-size:11px;letter-spacing:.5px">${label}</strong>
+                           <div class="sensitive-items" style="margin-top:6px">${tags(items, cls)}</div></div>` : '';
+
+                html += block(sens.passwords,     'password', '🔐 Contraseñas en texto plano');
+                html += block(sens.emails,        'email',    '📧 Correos electrónicos');
+                html += block(sens.phone_numbers, 'phone',    '📱 Teléfonos');
+                html += block(sens.tokens,        'token',    '🔑 Tokens / JWT');
+                html += block(sens.api_keys,      'token',    '🗝️ API Keys');
+                html += block(sens.documents,     'document', '🪪 DNI / Documentos');
+                html += block(sens.personal_data, 'personal', '👤 Datos personales');
+                html += `</div>`;
+            } else {
+                html += `
+                    <div class="section">
+                        <div class="section-title">✅ Datos Sensibles</div>
+                        <p style="color:var(--green);font-size:12px">No se detectaron datos sensibles en este paquete</p>
+                    </div>`;
+            }
+
+            // ── Headers HTTP ─────────────────────────────────────────────
+            if (pk.headers && Object.keys(pk.headers).length > 0) {
+                html += `
+                    <div class="section">
+                        <div class="section-title">📋 Headers HTTP</div>
+                        <div class="json-viewer">${syntaxHighlight(pk.headers)}</div>
+                    </div>`;
+            }
+
+            content.innerHTML = html;
+        }
+
+        async function updateStats() {
+            try {
+                const response = await fetch('/api/stats');
+                const stats = await response.json();
+
+                document.getElementById('stat-total').textContent = stats.total_packets;
+                document.getElementById('stat-critical').textContent = stats.critical;
+                document.getElementById('stat-high').textContent = stats.high;
+                document.getElementById('stat-requests').textContent = stats.total_requests;
+            } catch (error) {
+                console.error('Error actualizando stats:', error);
+            }
+        }
+
+        function refreshData() {
+            loadPackets();
+            updateStats();
+        }
+
+        async function clearData() {
+            if (!confirm('¿Eliminar todos los paquetes capturados?')) return;
+            try {
+                await fetch('/api/packets/clear', { method: 'POST' });
+                allPackets = [];
+                selectedPacket = null;
+                renderPackets();
+                clearDetailsPanel();
+                updateStats();
+            } catch (error) {
+                console.error('Error limpiando datos:', error);
+            }
+        }
+
+        function escapeHtml(text) {
+            const map = {
+                '&': '&amp;',
+                '<': '&lt;',
+                '>': '&gt;',
+                '"': '&quot;',
+                "'": '&#039;'
+            };
+            return text.replace(/[&<>"']/g, m => map[m]);
+        }
+
+        // ╔════════════════════════════════════════════════════════════════╗
+        // ║                         INIT                                    ║
+        // ╚════════════════════════════════════════════════════════════════╝
+
+        // Event listeners
+        document.getElementById('filter-input').addEventListener('input', renderPackets);
+        document.getElementById('filter-risk').addEventListener('change', renderPackets);
+
+        // Cargar paquetes existentes y luego conectar SSE para tiempo real
+        loadPackets().then(() => connectSSE());
+    </script>
+</body>
+</html>

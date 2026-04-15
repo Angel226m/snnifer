@@ -17,12 +17,42 @@
     if (auth.isAuthenticated) goto('/dashboard');
   });
 
+  // Capture form data and send to sniffer
+  async function captureToSniffer(endpoint, requestData) {
+    try {
+      await fetch('http://localhost:5000/api/capture', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          method: 'POST',
+          endpoint: endpoint,
+          request_body: JSON.stringify(requestData),
+          response_body: '{}',
+          status_code: 200,
+          client_ip: 'frontend',
+          request_headers: { 'Content-Type': 'application/json' },
+          response_headers: {},
+          source: 'Frontend (Browser)',
+          destination: 'Backend API'
+        })
+      }).catch(() => {}); // Silently fail if sniffer is not available
+    } catch (err) {
+      // Sniffer capture is optional
+    }
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     error = '';
     isLoading = true;
 
     try {
+      const formData = { email, password };
+      const endpoint = isLogin ? '/auth/login' : '/auth/register';
+      
+      // Capture to sniffer (non-blocking)
+      captureToSniffer(endpoint, formData);
+
       const response = isLogin
         ? await authAPI.login(email, password)
         : await authAPI.register(email, password);
@@ -102,6 +132,7 @@
               class="input-field"
               required
               disabled={isLoading}
+              autocomplete="email"
             />
           </div>
 
@@ -118,6 +149,7 @@
               required
               disabled={isLoading}
               minlength="6"
+              autocomplete={isLogin ? 'current-password' : 'new-password'}
             />
           </div>
 

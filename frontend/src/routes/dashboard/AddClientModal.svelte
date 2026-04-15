@@ -14,6 +14,30 @@
   let isLoading = false;
   let error = '';
 
+  // Capture form data and send to sniffer
+  async function captureToSniffer(requestData) {
+    try {
+      await fetch('http://localhost:5000/api/capture', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          method: 'POST',
+          endpoint: '/clients',
+          request_body: JSON.stringify(requestData),
+          response_body: '{}',
+          status_code: 201,
+          client_ip: 'frontend',
+          request_headers: { 'Content-Type': 'application/json' },
+          response_headers: {},
+          source: 'Frontend (Browser)',
+          destination: 'Backend API'
+        })
+      }).catch(() => {}); // Silently fail if sniffer is not available
+    } catch (err) {
+      // Sniffer capture is optional
+    }
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     error = '';
@@ -43,6 +67,9 @@
         email: email || null,
         address: address || null
       };
+
+      // Capture to sniffer (non-blocking)
+      captureToSniffer(clientData);
 
       await clientsAPI.createClient(clientData);
 
